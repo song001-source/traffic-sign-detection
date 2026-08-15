@@ -1,5 +1,7 @@
 # YOLO12 交通标志识别项目
 
+中文 | [English](README.en.md)
+
 基于 [Ultralytics YOLO12](https://docs.ultralytics.com/models/yolo12/) 的交通标志检测系统，使用 **COCO 格式 46 类中国交通标志数据集**训练，支持图片、视频、摄像头三种推理方式，并附带完整的 Web 演示系统（图片/视频/浏览器摄像头实时检测）。
 
 > ⚠️ **命名说明**：Ultralytics 官方将该模型命名为 **`yolo12`**（不是 `yolov12`）。模型文件为 `yolo12n.pt`。许多教程写作 "YOLOv12" 是不准确的。
