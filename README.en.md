@@ -154,7 +154,7 @@ Labels use YOLO format: one line per object — `class_id x_center y_center widt
 
 Class IDs follow the 46-class order in `configs/coco.yaml` (ID 0-45); see the full table at the end of this file.
 
-**Data source reference**: this project is organized and extended from the [TT100K](https://cg.cs.tsinghua.edu.cn/traffic-sign/) (Tsinghua-Tencent) public traffic sign dataset — please respect its license. You can also source data from platforms like [Roboflow](https://universe.roboflow.com/) or annotate your own.
+**Data source note**: the dataset used in this project is a **COCO-format dataset of 46 classes of Chinese traffic signs** (6,809 training images, 1,953 validation images). Due to its size it is not included in this repository — prepare your own by sourcing from platforms like [Roboflow](https://universe.roboflow.com/) or annotating your own data with tools such as LabelImg.
 
 **Config note**: `configs/coco.yaml` uses the relative path `../data/coco`, so after cloning and placing the data you can train directly without editing any config.
 

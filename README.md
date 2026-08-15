@@ -154,7 +154,7 @@ data/coco/
 
 类别 ID 与 `configs/coco.yaml` 中的 46 类顺序一致（ID 0-45），完整对照表见文件末尾。
 
-**数据来源参考**：本项目基于 [TT100K](https://cg.cs.tsinghua.edu.cn/traffic-sign/)（清华-腾讯公开交通标志数据集）整理扩展，请遵守原数据集许可协议。也可以使用 [Roboflow](https://universe.roboflow.com/) 等平台获取或自行标注数据。
+**数据来源说明**：本仓库使用的数据集为 **COCO 格式 46 类中国交通标志数据集**（训练集 6809 张、验证集 1953 张）。数据集体积较大，未包含在仓库中，需自行准备——可通过 [Roboflow](https://universe.roboflow.com/) 等平台获取，或使用 LabelImg 等工具自行标注。
 
 **配置说明**：`configs/coco.yaml` 使用相对路径 `../data/coco`，克隆仓库并放入数据后即可直接训练，无需修改配置。
 
