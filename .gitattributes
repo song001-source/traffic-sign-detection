@@ -1,0 +1,15 @@
+# 统一换行符（Windows 项目避免 CRLF 污染）
+* text=auto eol=lf
+
+# Windows 批处理脚本保持 CRLF
+*.bat text eol=crlf
+
+# 二进制文件
+*.pt binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.gif binary
+*.mp4 binary
+*.onnx binary
+*.pth binary

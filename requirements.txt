@@ -1,0 +1,33 @@
+# YOLO12 交通标志识别项目 - 依赖清单
+# ============================================
+# ⚠️ 重要：PyTorch 必须安装 CUDA 12.8 版本（cu128）以支持 RTX 50 系列显卡
+#
+# 安装命令（按顺序执行）：
+#   pip install torch torchvision --index-url https://download.pytorch.org/whl/cu128
+#   pip install -r requirements.txt
+
+# PyTorch（需用上面的特殊命令安装 cu128 版本，这里仅声明版本约束）
+torch>=2.5.0
+torchvision>=0.20.0
+
+# YOLO 框架（注意: 模型官方命名为 yolo12，非 yolov12）
+ultralytics>=8.3.0
+
+# 图像处理与可视化
+opencv-python>=4.8.0
+pillow>=9.0.0
+matplotlib>=3.7.0
+
+# 配置文件解析
+pyyaml>=6.0
+
+# Web 演示系统（run.py / demo/）
+fastapi>=0.115.0
+uvicorn[standard]>=0.30.0
+python-multipart>=0.0.9
+websockets>=12.0
+numpy>=1.26.0
+
+# 可选：Celery 异步视频任务（需 Redis）
+celery>=5.3.0
+redis>=5.0.0
