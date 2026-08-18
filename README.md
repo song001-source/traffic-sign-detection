@@ -2,9 +2,85 @@
 
 中文 | [English](README.en.md)
 
+![Python](https://img.shields.io/badge/Python-3.11-blue) ![PyTorch](https://img.shields.io/badge/PyTorch-2.x%20cu128-orange) ![Ultralytics](https://img.shields.io/badge/Ultralytics-YOLO12-green) ![License](https://img.shields.io/badge/License-MIT-yellow)
+
 基于 [Ultralytics YOLO12](https://docs.ultralytics.com/models/yolo12/) 的交通标志检测系统，使用 **COCO 格式 46 类中国交通标志数据集**训练，支持图片、视频、摄像头三种推理方式，并附带完整的 Web 演示系统（图片/视频/浏览器摄像头实时检测）。
 
 > ⚠️ **命名说明**：Ultralytics 官方将该模型命名为 **`yolo12`**（不是 `yolov12`）。模型文件为 `yolo12n.pt`。许多教程写作 "YOLOv12" 是不准确的。
+
+---
+
+## 📊 项目成果
+
+| 指标 | 数值 |
+|------|------|
+| 检测类别 | 46 类中国交通标志 |
+| **mAP50** | **0.924** |
+| **mAP50-95** | **0.698** |
+| Precision / Recall | 0.896 / 0.869 |
+| 最佳权重 | yolo12m，best @ epoch 151（200 配置，早停于 171） |
+| 训练数据 | 6,809 训练 + 1,953 验证 |
+| 推理方式 | 图片 / 视频 / 摄像头 + Web 演示系统 |
+
+---
+
+## 🛠️ 构建历程
+
+### 1. 数据迭代：从 mAP 0.2 到 0.924（本项目最关键的转折）
+
+- **初期**：基于 TT100K（清华-腾讯公开数据集）训练，mAP50 **仅约 0.2**，远未达到可用水平
+- **分析**：数据分布不均、类别覆盖不足、标注格式混杂是性能瓶颈
+- **行动**：自行整理、扩展并统一标注为 **46 类 COCO 格式数据集**（6,809 训练 / 1,953 验证）
+- **结果**：在自建数据集上 mAP50 提升至 **0.924**，约为初期的 **4.6 倍**
+
+> 结论：**数据质量是模型性能的关键**——同样的模型，换用高质量数据后效果天差地别。
+
+### 2. 环境踩坑：RTX 50 系列（Blackwell）必须 cu128 版 PyTorch
+
+- 报错 `no kernel image is available for execution` → 排查确认是 PyTorch 版本与 GPU 架构不匹配
+- 解决：安装 CUDA 12.8（cu128）版 PyTorch，问题彻底解决
+
+### 3. 流程验证：yolo12n 3 epochs 冒烟测试
+
+- 用最小模型跑通"数据加载 → 训练 → 评估 → 导出权重"全流程，确保管线无误再投入正式训练
+
+### 4. 初版训练：yolo12s 100 epochs
+
+- 小模型 + 100 epochs，mAP50 达到 **0.652**，验证了数据与流程的可行性
+
+### 5. 迭代优化：yolo12m 200 epochs（早停于 171）
+
+- 升级到中量级模型，200 epochs 配置 + 早停机制（patience=20），实际训练 171 epochs
+- best @ epoch 151：**mAP50 0.924 / mAP50-95 0.698**，较初版提升 **+41.7%**
+
+### 6. 工程化演进：从 CLI 到完整 Web 系统
+
+- CLI 推理脚本（图片/视频/摄像头）→ 抽取 `inference/` 推理底座（纯 YOLO，零 Web 依赖）
+- 构建 FastAPI 后端 + Vue 3 前端（Element Plus + ECharts）：图片检测、视频异步检测、WebSocket 摄像头实时检测
+- Celery 异步任务架构（可选，视频线程版无需 Redis）
+
+---
+
+## 📈 训练与评估
+
+**yolo12m 训练曲线**（200 epochs 配置，早停于 171，best @ epoch 151）：
+
+![训练曲线](docs/training/results.png)
+
+| 指标（best @ 151） | 数值 |
+|--------------------|------|
+| Precision | 0.896 |
+| Recall | 0.869 |
+| mAP50 | 0.924 |
+| mAP50-95 | 0.698 |
+
+**PR 曲线**：
+
+![PR 曲线](docs/training/BoxPR_curve.png)
+
+**归一化混淆矩阵**（46 类）：
+
+![混淆矩阵](docs/training/confusion_matrix_normalized.png)
 
 ---
 
@@ -86,6 +162,8 @@ traffic-sign-detection/
 │   └── coco.yaml            # 数据集配置（46 类，路径为相对路径）
 ├── data/
 │   └── coco/                # 数据集（需自行准备，见"数据集准备"）
+├── docs/
+│   └── training/            # 训练曲线/PR 曲线/混淆矩阵图
 ├── models/                  # 自定义权重
 ├── run.py                   # 一步启动 API + 前端
 ├── best.pt                  # 训练好的权重（默认推理模型）
@@ -134,7 +212,17 @@ python src/train.py --model yolo12s.pt --epochs 50 --batch 8
 
 ## 五、数据集准备
 
-> 数据集体积较大，**不包含在仓库中**，需要自行准备。训练与推理目录约定如下：
+### 数据整理过程
+
+原始标注数据格式混杂，我将其统一整理为 **COCO 格式**（46 类中国交通标志）：
+
+- 统一目录结构：`images/{train,val}` + `labels/{train,val}`（YOLO txt 与图片同名）
+- 标注归一化：`class_id x_center y_center width height`
+- 数量：训练集 6,809 张、验证集 1,953 张
+
+### 如何获取数据
+
+> 数据集体积较大，**不包含在仓库中**，需自行准备。目录约定如下：
 
 ```
 data/coco/
@@ -154,7 +242,7 @@ data/coco/
 
 类别 ID 与 `configs/coco.yaml` 中的 46 类顺序一致（ID 0-45），完整对照表见文件末尾。
 
-**数据来源说明**：本仓库使用的数据集为 **COCO 格式 46 类中国交通标志数据集**（训练集 6809 张、验证集 1953 张）。数据集体积较大，未包含在仓库中，需自行准备——可通过 [Roboflow](https://universe.roboflow.com/) 等平台获取，或使用 LabelImg 等工具自行标注。
+可通过 [Roboflow](https://universe.roboflow.com/) 等平台获取公开交通标志数据集，或使用 LabelImg 等工具自行标注。
 
 **配置说明**：`configs/coco.yaml` 使用相对路径 `../data/coco`，克隆仓库并放入数据后即可直接训练，无需修改配置。
 
@@ -162,7 +250,7 @@ data/coco/
 
 ## 六、Web 演示系统
 
-项目包含一个完整的 Web 演示系统，支持图片/视频/实时摄像头三种检测方式。
+> 💡 **开箱即用，可以自己使用**：Web 端不只是一个演示——克隆仓库、安装依赖、运行 `python run.py` 后即可自行使用全部功能（图片检测、视频检测、浏览器摄像头实时检测）。视频异步处理默认走线程版接口，**无需 Redis** 即可运行。
 
 ### 6.1 快速启动
 

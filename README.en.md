@@ -2,9 +2,85 @@
 
 [中文](README.md) | English
 
+![Python](https://img.shields.io/badge/Python-3.11-blue) ![PyTorch](https://img.shields.io/badge/PyTorch-2.x%20cu128-orange) ![Ultralytics](https://img.shields.io/badge/Ultralytics-YOLO12-green) ![License](https://img.shields.io/badge/License-MIT-yellow)
+
 A traffic sign detection system based on [Ultralytics YOLO12](https://docs.ultralytics.com/models/yolo12/), trained on a **COCO-format dataset of 46 classes of Chinese traffic signs**. It supports three inference modes — **image, video, and live camera** — and ships with a complete web demo (image / video / browser-camera real-time detection).
 
 > ⚠️ **Naming note**: Ultralytics officially names this model **`yolo12`** (not `yolov12`). The model file is `yolo12n.pt`. Many tutorials that write "YOLOv12" are inaccurate.
+
+---
+
+## 📊 Project Highlights
+
+| Metric | Value |
+|--------|-------|
+| Classes | 46 Chinese traffic signs |
+| **mAP50** | **0.924** |
+| **mAP50-95** | **0.698** |
+| Precision / Recall | 0.896 / 0.869 |
+| Best weights | yolo12m, best @ epoch 151 (configured 200, early-stopped at 171) |
+| Training data | 6,809 train + 1,953 val |
+| Inference modes | Image / Video / Camera + Web demo |
+
+---
+
+## 🛠️ Development Journey
+
+### 1. Data Iteration: From mAP 0.2 to 0.924 (the key turning point)
+
+- **Initial stage**: trained on TT100K (Tsinghua-Tencent public dataset), mAP50 was **only ~0.2** — far from usable
+- **Analysis**: uneven class distribution, insufficient coverage, and mixed annotation formats were the bottlenecks
+- **Action**: cleaned, extended and unified the annotations into a **46-class COCO-format dataset** (6,809 train / 1,953 val)
+- **Result**: mAP50 jumped to **0.924** on the self-built dataset — roughly **4.6×** the initial result
+
+> Takeaway: **data quality is the key to model performance** — with the same model, high-quality data makes all the difference.
+
+### 2. Environment Pitfall: RTX 50-series (Blackwell) requires the cu128 PyTorch build
+
+- `no kernel image is available for execution` error → diagnosed as a PyTorch/GPU architecture mismatch
+- Fixed by installing the CUDA 12.8 (cu128) build of PyTorch
+
+### 3. Pipeline Validation: yolo12n 3-epoch smoke test
+
+- Ran the smallest model through the full pipeline (data loading → training → evaluation → weight export) to verify the pipeline before committing to full training
+
+### 4. First Training: yolo12s for 100 epochs
+
+- Small model + 100 epochs, reached mAP50 **0.652**, confirming the data and pipeline were viable
+
+### 5. Iterative Improvement: yolo12m for 200 epochs (early-stopped at 171)
+
+- Upgraded to a mid-size model, 200-epoch config with early stopping (patience=20), actually trained 171 epochs
+- Best @ epoch 151: **mAP50 0.924 / mAP50-95 0.698**, **+41.7%** over the first run
+
+### 6. Engineering Evolution: From CLI to a Full Web System
+
+- CLI inference scripts (image/video/camera) → extracted an `inference/` core (pure YOLO, zero web dependencies)
+- Built a FastAPI backend + Vue 3 frontend (Element Plus + ECharts): image detection, async video detection, WebSocket camera real-time detection
+- Celery async task architecture (optional; the thread-based video pipeline needs no Redis)
+
+---
+
+## 📈 Training & Evaluation
+
+**yolo12m training curves** (configured 200 epochs, early-stopped at 171, best @ epoch 151):
+
+![Training curves](docs/training/results.png)
+
+| Metric (best @ 151) | Value |
+|---------------------|-------|
+| Precision | 0.896 |
+| Recall | 0.869 |
+| mAP50 | 0.924 |
+| mAP50-95 | 0.698 |
+
+**PR curve**:
+
+![PR curve](docs/training/BoxPR_curve.png)
+
+**Normalized confusion matrix** (46 classes):
+
+![Confusion matrix](docs/training/confusion_matrix_normalized.png)
 
 ---
 
@@ -86,6 +162,8 @@ traffic-sign-detection/
 │   └── coco.yaml            # Dataset config (46 classes, relative path)
 ├── data/
 │   └── coco/                # Dataset (needs to be prepared by yourself, see below)
+├── docs/
+│   └── training/            # Training curves / PR curve / confusion matrix
 ├── models/                  # Custom weights
 ├── run.py                   # One-command startup for API + frontend
 ├── best.pt                  # Trained weights (default inference model)
@@ -134,6 +212,16 @@ After training, the best weights are at `runs/train-*/weights/best.pt` (the infe
 
 ## 5. Dataset Preparation
 
+### Data organization process
+
+The raw annotations were in mixed formats; I unified them into a **COCO-format dataset** (46 classes of Chinese traffic signs):
+
+- Unified directory layout: `images/{train,val}` + `labels/{train,val}` (YOLO txt, same basename as images)
+- Normalized annotations: `class_id x_center y_center width height`
+- Size: 6,809 training images, 1,953 validation images
+
+### How to get the data
+
 > The dataset is **not included in this repository** (too large). You need to prepare it yourself. The expected layout is:
 
 ```
@@ -154,7 +242,7 @@ Labels use YOLO format: one line per object — `class_id x_center y_center widt
 
 Class IDs follow the 46-class order in `configs/coco.yaml` (ID 0-45); see the full table at the end of this file.
 
-**Data source note**: the dataset used in this project is a **COCO-format dataset of 46 classes of Chinese traffic signs** (6,809 training images, 1,953 validation images). Due to its size it is not included in this repository — prepare your own by sourcing from platforms like [Roboflow](https://universe.roboflow.com/) or annotating your own data with tools such as LabelImg.
+You can source public traffic sign datasets from platforms like [Roboflow](https://universe.roboflow.com/), or annotate your own data with tools such as LabelImg.
 
 **Config note**: `configs/coco.yaml` uses the relative path `../data/coco`, so after cloning and placing the data you can train directly without editing any config.
 
@@ -162,7 +250,7 @@ Class IDs follow the 46-class order in `configs/coco.yaml` (ID 0-45); see the fu
 
 ## 6. Web Demo
 
-The project includes a complete web demo supporting image, video, and real-time camera detection.
+> 💡 **Ready to use out of the box**: the web app is more than a demo — clone the repo, install dependencies, run `python run.py`, and you can use all features yourself (image detection, video detection, browser-camera real-time detection). Async video processing uses the thread-based endpoint by default — **no Redis required**.
 
 ### 6.1 Quick start
 
